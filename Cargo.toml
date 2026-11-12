@@ -2,10 +2,10 @@
 authors = ["Wouter Geraedts <git@woutergeraedts.nl>", "Sean Bowe <ewillbefull@gmail.com>", "Jack Grigg <thestr4d@gmail.com>"]
 description = "Fork of the BLS12-381 pairing-friendly elliptic curve construction with target group serialization"
 documentation = "https://docs.rs/pg-curve/"
-homepage = "https://github.com/encryption4all/pg-curve"
+homepage = "https://github.com/privacybydesign/pg-curve"
 license = "MIT/Apache-2.0"
 name = "pg-curve"
-repository = "https://github.com/encryption4all/pg-curve"
+repository = "https://github.com/privacybydesign/pg-curve"
 version = "0.2.0"
 edition = "2021"
 rust-version = "1.80.0"

@@ -4,21 +4,24 @@ name: Beta lints
 # and not trial-merges of PRs, to reduce noise.
 on: push
 
+permissions: {}
+
 jobs:
   clippy-beta:
     name: Clippy (beta)
     timeout-minutes: 30
     runs-on: ubuntu-latest
     continue-on-error: true
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@beta
-        id: toolchain
-      - run: rustup override set ${{steps.toolchain.outputs.name}}
-      - name: Run Clippy (beta)
-        uses: actions-rs/clippy-check@v1
-        continue-on-error: true
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          name: Clippy (beta)
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features --all-targets -- -W clippy::all
+          persist-credentials: false
+      - name: Install Rust (beta)
+        run: |
+          rustup toolchain install beta --profile minimal --no-self-update --component clippy
+          rustup override set beta
+      - name: Run Clippy (beta)
+        continue-on-error: true
+        run: cargo clippy --all-features --all-targets -- -W clippy::all
