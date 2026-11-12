@@ -23,11 +23,11 @@ divergence someone carries at the next upstream merge.
 
 ## Sibling repos to consider
 
-- `encryption4all/ibe` — the only consumer of this crate. (`ibs` is not one: it is on
+- `privacybydesign/ibe` — the only consumer of this crate. (`ibs` is not one: it is on
   `curve25519-dalek`.)
-- `encryption4all/postguard` — `pg-core`, the PKG and `COMPATIBILITY.md`; the root of
+- `privacybydesign/postguard` — `pg-core`, the PKG and `COMPATIBILITY.md`; the root of
   the family.
-- `encryption4all/postguard-docs` — `docs.postguard.eu/repos/pg-curve`, where this
+- `privacybydesign/postguard-docs` — `docs.postguard.eu/repos/pg-curve`, where this
   repo's documentation lives.
 
 One company, two GitHub orgs. `encryption4all` is the vehicle the PostGuard research

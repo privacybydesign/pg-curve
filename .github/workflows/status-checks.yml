@@ -1,0 +1,160 @@
+name: Status checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  merge_group:
+  workflow_dispatch:
+
+permissions: {}
+
+# A new push to a PR cancels the PR's previous run. Other events get a
+# group of their own (run_id), so they never wait for or cancel each other.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  lint:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # rust-toolchain.toml pins the MSRV toolchain; rustup ships with the
+      # runner image, so no toolchain action is needed.
+      - name: Install Rust
+        shell: bash
+        run: rustup toolchain install --profile minimal --no-self-update
+      - run: cargo fmt --all -- --check --color always
+
+  clippy:
+    name: Clippy (MSRV)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # rust-toolchain.toml pins the MSRV toolchain; rustup ships with the
+      # runner image, so no toolchain action is needed.
+      - name: Install Rust
+        shell: bash
+        run: rustup toolchain install --profile minimal --no-self-update
+      - run: cargo clippy --all-features --all-targets -- -D warnings
+
+  test:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # rust-toolchain.toml pins the MSRV toolchain; rustup ships with the
+      # runner image, so no toolchain action is needed.
+      - name: Install Rust
+        shell: bash
+        run: rustup toolchain install --profile minimal --no-self-update
+      - run: cargo build --verbose --release --tests --features experimental,zeroize
+      - run: cargo test --verbose --release --features experimental,zeroize
+
+  no-std:
+    name: Check no-std target ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [thumbv6m-none-eabi, wasm32-unknown-unknown, wasm32-wasi]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # rust-toolchain.toml pins the MSRV toolchain; rustup ships with the
+      # runner image, so no toolchain action is needed.
+      - name: Install Rust
+        shell: bash
+        run: rustup toolchain install --profile minimal --no-self-update
+      - run: rustup target add ${{ matrix.target }}
+      - run: cargo build --verbose --target ${{ matrix.target }} --no-default-features --features groups,pairings
+
+  bitrot:
+    name: Bitrot check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # rust-toolchain.toml pins the MSRV toolchain; rustup ships with the
+      # runner image, so no toolchain action is needed.
+      - name: Install Rust
+        shell: bash
+        run: rustup toolchain install --profile minimal --no-self-update
+      - run: cargo build --benches --examples --all-features
+
+  doc-links:
+    name: Intra-doc links
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # rust-toolchain.toml pins the MSRV toolchain; rustup ships with the
+      # runner image, so no toolchain action is needed.
+      - name: Install Rust
+        shell: bash
+        run: rustup toolchain install --profile minimal --no-self-update
+      - run: cargo doc --document-private-items
+
+  dependency-review:
+    uses: privacybydesign/github-workflows/.github/workflows/dependency-review.yml@v1
+    permissions:
+      contents: read
+      pull-requests: write
+
+  workflow-lint:
+    uses: privacybydesign/github-workflows/.github/workflows/workflow-lint.yml@v1
+    permissions:
+      contents: read
+
+  # Single required check for the organization ruleset: job names inside this
+  # workflow can change without touching the ruleset.
+  passed:
+    name: Status checks passed
+    if: always()
+    needs: [lint, clippy, test, no-std, bitrot, doc-links, dependency-review, workflow-lint]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: All required jobs succeeded
+        env:
+          RESULTS: ${{ toJSON(needs.*.result) }}
+        run: |
+          echo "$RESULTS"
+          if grep -qE '"(failure|cancelled)"' <<< "$RESULTS"; then exit 1; fi
